@@ -1,0 +1,410 @@
+<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#fff;color:#000}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
+<title>Food Time</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bowlby+One&family=DM+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: one full-height column. A black "screen" with corner brackets fills the page, a slim control bar sits beneath it.
+   Single dark look on purpose: a screensaver should read as a dark screen in any host theme. */
+:root {
+  --bg: #14100e;
+  --screen: #080605;
+  --ink: #1a0f0a;
+  --fg: #f3e9e1;
+  --muted: #9a8c83;
+  --line: #3a302b;
+  --edge: rgba(243, 233, 225, 0.14);
+  --scrim: rgba(8, 6, 5, 0.78);
+  --tomato: #ff5a3c;
+  --mustard: #ffc83d;
+  --display: 'Bowlby One', 'Arial Black', Impact, sans-serif;
+  --mono: 'DM Mono', ui-monospace, Menlo, Consolas, monospace;
+  color-scheme: dark;
+}
+
+*, *::before, *::after { box-sizing: border-box; }
+html, body { height: 100%; }
+
+body {
+  background: var(--bg);
+  color: var(--fg);
+  font-family: var(--mono);
+  font-size: 14px;
+  padding-block: 16px;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.stage {
+  --c: var(--tomato);
+  position: relative;
+  flex: 1;
+  min-height: 240px;
+  background: var(--screen);
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.tick {
+  position: absolute;
+  width: 28px;
+  height: 28px;
+  border: 0 solid var(--line);
+  pointer-events: none;
+}
+.tl { left: 0; top: 0; border-top-width: 2px; border-left-width: 2px; }
+.tr { right: 0; top: 0; border-top-width: 2px; border-right-width: 2px; }
+.bl { left: 0; bottom: 0; border-bottom-width: 2px; border-left-width: 2px; }
+.br { right: 0; bottom: 0; border-bottom-width: 2px; border-right-width: 2px; }
+
+.box { position: absolute; left: 0; top: 0; will-change: transform; }
+
+.face {
+  display: block;
+  background: var(--c);
+  color: var(--ink);
+  font-family: var(--display);
+  font-size: clamp(26px, 6.5vw, 54px);
+  line-height: 1;
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+  padding: 0.32em 0.55em 0.36em;
+  border-radius: 0.18em;
+  box-shadow: 0.1em 0.1em 0 var(--edge);
+  user-select: none;
+}
+
+.fx {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+}
+
+.flash {
+  position: absolute;
+  inset: 0;
+  background: var(--c);
+  opacity: 0;
+  pointer-events: none;
+}
+
+.pause {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-content: center;
+  justify-items: center;
+  gap: 20px;
+  background: var(--scrim);
+  cursor: pointer;
+}
+.pause:focus-visible { outline: 2px solid var(--mustard); outline-offset: -6px; }
+.cat {
+  margin: 0;
+  font-family: var(--mono);
+  font-size: clamp(14px, 3.6vw, 28px);
+  line-height: 1.15;
+  color: var(--c);
+  white-space: pre;
+  max-width: 100%;
+  overflow: hidden;
+}
+.hint {
+  margin: 0;
+  font-size: 11px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.hud {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px 28px;
+}
+.stat { display: flex; flex-direction: column; gap: 2px; min-width: 5.5em; }
+.k {
+  font-size: 11px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+.v {
+  font-size: 22px;
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.1;
+}
+</style>
+
+<div class="stage" id="stage">
+  <span class="tick tl" id="tl"></span>
+  <span class="tick tr" id="tr"></span>
+  <span class="tick bl" id="bl"></span>
+  <span class="tick br" id="br"></span>
+  <div class="box" id="box"><span class="face" id="face">FOOD TIME</span></div>
+  <div class="flash" id="flash"></div>
+  <div class="pause" id="pause" hidden role="button" tabindex="0" aria-label="A cat dances and eats from a bowl of food. Press to keep bouncing.">
+    <pre class="cat" id="cat" aria-hidden="true"></pre>
+    <p class="hint">Tap to keep bouncing</p>
+  </div>
+  <canvas class="fx" id="fx"></canvas>
+</div>
+
+<div class="hud">
+  <div class="stat"><span class="k">Bounces</span><span class="v" id="bounces">0</span></div>
+  <div class="stat"><span class="k">Corner hits</span><span class="v" id="corners" aria-live="polite">0</span></div>
+</div>
+
+<script>
+(function () {
+  'use strict';
+
+  var COLORS = ['#ff5a3c', '#ffc83d', '#b6e04a', '#3fd6c4', '#ff7eb6', '#6db8ff'];
+  var FOODS = ['🍕', '🍔', '🍟', '🌮', '🍩', '🍣', '🍜', '🥐', '🍪', '🧁'];
+  var RATIO = 0.78; // vertical speed relative to horizontal, so the path does not loop on a pure diagonal
+  var TOL = 8;      // px from the second wall that still counts as a corner hit
+  var reduce = !!(window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches);
+
+  function $(id) { return document.getElementById(id); }
+  var stage = $('stage'), box = $('box'), face = $('face'), fx = $('fx'), flash = $('flash');
+  var ctx = fx.getContext('2d');
+  var ticks = { tl: $('tl'), tr: $('tr'), bl: $('bl'), br: $('br') };
+  var bouncesEl = $('bounces'), cornersEl = $('corners');
+  var lineColor = (getComputedStyle(document.documentElement).getPropertyValue('--line') || '').trim() || '#3a302b';
+
+  var W = 0, H = 0, w = 0, h = 0, dpr = 1;
+  var x = 0, y = 0, sx = 1, sy = 1, speed = 600; // max speed, px per second
+  var bounces = 0, corners = 0, ci = 0, timeScale = 1, lastCornerAt = -1e9;
+  var particles = [];
+  var frozen = false, freezeAt = 0, catTimer = 0, catIdx = 0;
+  var pauseEl = $('pause'), catEl = $('cat');
+
+  // ASCII cat eating a fish. The fish disappears over successive frames.
+  var FRAMES = [
+String.raw`
+   /\_/\
+  ( °-° )
+ ╭/ >🐟<\╮`,
+String.raw`
+   /\_/\
+  ( °o° )
+ ╭/ >🐟<\╮`,
+String.raw`
+   /\_/\
+  ( °o° )
+ ╭/ >🐟<\╮`,
+String.raw`
+   /\_/\
+  ( °w° )
+ ╭/ >🐟<\╮`,
+String.raw`
+   /\_/\
+  ( ^o^ )
+ ╭/ ><  \╮`,
+String.raw`
+   /\_/\
+  ( ^-^ )
+ ╭/   ><\╮`,
+String.raw`
+   /\_/\
+  ( ^w^ )
+ ╭/><   \╮`
+  ];
+  var FRAME_ROWS = FRAMES.map(function (f) { return f.replace(/^\n/, '').split('\n'); });
+  var FH = 0, FW = 0;
+  FRAME_ROWS.forEach(function (rows) {
+    FH = Math.max(FH, rows.length);
+    rows.forEach(function (r) { FW = Math.max(FW, r.length); });
+  });
+  FRAMES = FRAME_ROWS.map(function (rows) {
+    var out = [];
+    while (out.length + rows.length < FH) { out.push(''); }
+    rows.forEach(function (r) { out.push(r); });
+    return out.map(function (r) { return r + new Array(FW - r.length + 1).join(' '); }).join('\n');
+  });
+
+  function setColor(i) { stage.style.setProperty('--c', COLORS[i % COLORS.length]); }
+  function place() { box.style.transform = 'translate3d(' + x.toFixed(2) + 'px,' + y.toFixed(2) + 'px,0)'; }
+
+  function measure() {
+    W = stage.clientWidth; H = stage.clientHeight;
+    w = box.offsetWidth; h = box.offsetHeight;
+    dpr = Math.min(window.devicePixelRatio || 1, 2);
+    var cw = Math.round(W * dpr), ch = Math.round(H * dpr);
+    if (fx.width !== cw || fx.height !== ch) { fx.width = cw; fx.height = ch; }
+    x = Math.min(Math.max(0, x), Math.max(0, W - w));
+    y = Math.min(Math.max(0, y), Math.max(0, H - h));
+    place();
+  }
+
+  function animate(el, frames, opts) {
+    if (el && el.animate) { el.animate(frames, opts); }
+  }
+
+  function cornerHit(cx, cy, now) {
+    corners++;
+    cornersEl.textContent = corners;
+    var color = COLORS[ci];
+
+    // Food confetti fired from the corner into the screen
+    var base = Math.atan2(cy === 0 ? 1 : -1, cx === 0 ? 1 : -1);
+    var n = reduce ? 22 : 80;
+    for (var i = 0; i < n; i++) {
+      var a = base + (Math.random() - 0.5) * Math.PI * 0.9;
+      var s = 260 + Math.random() * 560;
+      particles.push({
+        x: cx, y: cy,
+        vx: Math.cos(a) * s, vy: Math.sin(a) * s,
+        r: Math.random() * 6.28, vr: (Math.random() - 0.5) * 10,
+        size: 22 + Math.random() * 20,
+        ch: FOODS[Math.floor(Math.random() * FOODS.length)],
+        life: 2 + Math.random() * 0.9
+      });
+    }
+    if (particles.length > 400) { particles.splice(0, particles.length - 400); }
+
+    // The matching bracket lights up in the box color
+    var key = (cy === 0 ? 't' : 'b') + (cx === 0 ? 'l' : 'r');
+    animate(ticks[key], [
+      { borderColor: color, width: '28px', height: '28px' },
+      { borderColor: color, width: '72px', height: '72px', offset: 0.2 },
+      { borderColor: color, width: '72px', height: '72px', offset: 0.7 },
+      { borderColor: lineColor, width: '28px', height: '28px' }
+    ], { duration: 1800, easing: 'ease-out' });
+
+    if (!reduce) {
+      // Color flash, spin with a rainbow hue shift, and a brief slow-motion
+      animate(flash, [{ opacity: 0.4 }, { opacity: 0 }], { duration: 700, easing: 'ease-out' });
+      animate(face, [
+        { transform: 'rotate(0deg) scale(1)', filter: 'hue-rotate(0deg)' },
+        { transform: 'rotate(360deg) scale(1.35)', filter: 'hue-rotate(360deg)', offset: 0.5 },
+        { transform: 'rotate(720deg) scale(1)', filter: 'hue-rotate(720deg)' }
+      ], { duration: 1100, easing: 'cubic-bezier(0.2, 0.8, 0.2, 1)' });
+    }
+    // Near-freeze so the box holds the corner, then pause everything on the cat
+    timeScale = 0.05;
+    freezeAt = now + (reduce ? 900 : 1500);
+  }
+
+  function showFrame() {
+    catEl.textContent = FRAMES[catIdx % FRAMES.length];
+    catIdx++;
+  }
+
+  function freeze() {
+    frozen = true;
+    catIdx = reduce ? 2 : 0;
+    showFrame();
+    pauseEl.hidden = false;
+    animate(pauseEl, [{ opacity: 0 }, { opacity: 1 }], { duration: 400, easing: 'ease-out' });
+    if (!reduce) { catTimer = setInterval(showFrame, 380); }
+    try { pauseEl.focus({ preventScroll: true }); } catch (e) { /* focus is optional */ }
+  }
+
+  function resume() {
+    if (!frozen) { return; }
+    frozen = false;
+    clearInterval(catTimer);
+    var a = pauseEl.animate ? pauseEl.animate([{ opacity: 1 }, { opacity: 0 }], { duration: 200 }) : null;
+    if (a) { a.onfinish = function () { pauseEl.hidden = true; }; } else { pauseEl.hidden = true; }
+  }
+
+  function step(dt, now) {
+    var maxX = Math.max(0, W - w), maxY = Math.max(0, H - h);
+    x += sx * speed * dt;
+    y += sy * speed * RATIO * dt;
+    var hx = false, hy = false;
+    if (x <= 0) { x = 0; sx = 1; hx = true; } else if (x >= maxX) { x = maxX; sx = -1; hx = true; }
+    if (y <= 0) { y = 0; sy = 1; hy = true; } else if (y >= maxY) { y = maxY; sy = -1; hy = true; }
+    if (hx || hy) {
+      bounces++;
+      bouncesEl.textContent = bounces;
+      ci = (ci + 1) % COLORS.length;
+      setColor(ci);
+      var nearX = Math.min(x, maxX - x) <= TOL;
+      var nearY = Math.min(y, maxY - y) <= TOL;
+      if (nearX && nearY && now - lastCornerAt > 700) {
+        lastCornerAt = now;
+        cornerHit(x < maxX / 2 ? 0 : W, y < maxY / 2 ? 0 : H, now);
+      }
+    }
+  }
+
+  function updateParticles(dt) {
+    for (var i = particles.length - 1; i >= 0; i--) {
+      var p = particles[i];
+      p.life -= dt;
+      if (p.life <= 0) { particles.splice(i, 1); continue; }
+      p.vy += 700 * dt;
+      p.vx *= 1 - 0.6 * dt;
+      p.x += p.vx * dt;
+      p.y += p.vy * dt;
+      p.r += p.vr * dt;
+    }
+  }
+
+  function draw() {
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    ctx.clearRect(0, 0, W, H);
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    for (var i = 0; i < particles.length; i++) {
+      var p = particles[i];
+      ctx.save();
+      ctx.globalAlpha = Math.min(1, p.life / 0.6);
+      ctx.translate(p.x, p.y);
+      ctx.rotate(p.r);
+      ctx.font = p.size + 'px "Apple Color Emoji","Segoe UI Emoji","Noto Color Emoji",sans-serif';
+      ctx.fillText(p.ch, 0, 0);
+      ctx.restore();
+    }
+  }
+
+  pauseEl.addEventListener('click', resume);
+  document.addEventListener('keydown', function (e) {
+    if (frozen && (e.key === 'Enter' || e.key === ' ' || e.key === 'Escape')) {
+      e.preventDefault();
+      resume();
+    }
+  });
+
+  setColor(ci);
+  measure();
+  x = Math.max(0, (W - w) * 0.15);
+  y = Math.max(0, (H - h) * 0.3);
+  place();
+
+  if (window.ResizeObserver) {
+    var ro = new ResizeObserver(measure);
+    ro.observe(stage);
+    ro.observe(box);
+  } else {
+    window.addEventListener('resize', measure);
+  }
+  if (document.fonts && document.fonts.ready) { document.fonts.ready.then(measure); }
+
+  var last = performance.now();
+  function frame(t) {
+    var dt = Math.min(Math.max((t - last) / 1000, 0), 0.05);
+    last = t;
+    if (timeScale < 1 && !freezeAt && !frozen) { timeScale = Math.min(1, timeScale + dt * 1.15); }
+    if (freezeAt && t >= freezeAt) { freezeAt = 0; freeze(); }
+    if (!frozen) { step(dt * timeScale, t); place(); }
+    updateParticles(dt);
+    draw();
+    requestAnimationFrame(frame);
+  }
+  requestAnimationFrame(frame);
+})();
+</script>
+
+</body></html>
